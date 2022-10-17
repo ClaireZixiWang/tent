@@ -22,13 +22,20 @@ class Tent(nn.Module):
         # then skipping the state copy would save memory
         self.model_state, self.optimizer_state = \
             copy_model_and_optimizer(self.model, self.optimizer)
+        
+        # A flag that tracks whether the model is in online adaptation mode
+        # or offline validation mode
+        self.offline = False
 
     def forward(self, x):
         if self.episodic:
             self.reset()
 
-        for _ in range(self.steps):
-            outputs = forward_and_adapt(x, self.model, self.optimizer)
+        if not self.offline: 
+            for _ in range(self.steps):
+                outputs = forward_and_adapt(x, self.model, self.optimizer)
+        else:
+            outputs = test_forward(x, self.model)
 
         return outputs
 
@@ -37,6 +44,11 @@ class Tent(nn.Module):
             raise Exception("cannot reset without saved model/optimizer state")
         load_model_and_optimizer(self.model, self.optimizer,
                                  self.model_state, self.optimizer_state)
+
+    def offline_validation(self):
+        self.model.eval()
+        self.offline = True
+
 
 
 @torch.jit.script
@@ -60,6 +72,12 @@ def forward_and_adapt(x, model, optimizer):
     optimizer.zero_grad()
     return outputs
 
+def test_forward(x, model):
+    """Just forward on batch of data without backword step.
+    """
+    # forward
+    outputs = model(x)
+    return outputs
 
 def collect_params(model):
     """Collect the affine scale + shift parameters from batch norms.
