@@ -35,6 +35,7 @@ class Tent(nn.Module):
             for _ in range(self.steps):
                 outputs = forward_and_adapt(x, self.model, self.optimizer)
         else:
+            # print('DEBUGGING: validation process')
             outputs = test_forward(x, self.model)
 
         return outputs
@@ -46,7 +47,7 @@ class Tent(nn.Module):
                                  self.model_state, self.optimizer_state)
 
     def offline_validation(self):
-        self.model.eval()
+        # self.model.eval()
         self.offline = True
 
 
@@ -72,10 +73,12 @@ def forward_and_adapt(x, model, optimizer):
     optimizer.zero_grad()
     return outputs
 
+@torch.no_grad() # ensure no grad context for validation mode
 def test_forward(x, model):
     """Just forward on batch of data without backword step.
     """
     # forward
+#     print("DEBUGGING: i'm inside the testing forward cell")
     outputs = model(x)
     return outputs
 
@@ -122,9 +125,10 @@ def configure_model(model):
         if isinstance(m, nn.BatchNorm2d):
             m.requires_grad_(True)
             # force use of batch stats in train and eval modes
-            m.track_running_stats = False
-            m.running_mean = None
-            m.running_var = None
+            # TODO: what would change it I don't force it, but only set module to train?
+            # m.track_running_stats = False
+            # m.running_mean = None
+            # m.running_var = None
     return model
 
 
